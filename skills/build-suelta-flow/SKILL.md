@@ -54,7 +54,7 @@ one to add:
 | `flows:read` | read flows, drafts, versions, tool catalog |
 | `flows:write` | create flows, edit drafts/tools, test-chat |
 | `flows:publish` | publish, revert, enable, canary, audience |
-| `settings:read` | WhatsApp status, integrations status, LLM-key presence (masked) |
+| `settings:read` | WhatsApp status, integrations status, OpenAI-key presence (masked) |
 | `messages:send` | outbound template sends — **spends money** |
 
 ## Mental model (read this before acting)
@@ -94,8 +94,10 @@ one to add:
 
 ## Golden path A — create a new flow
 
-1. **Pick a model.** Accepted prefixes: `gpt-`, `o1-`, `o3-`, `o4-`,
-   `gemini-`. Default to `gemini-3.6-flash` unless the user says otherwise.
+1. **Pick a model.** OpenAI only — accepted prefixes: `gpt-`, `o1-`, `o3-`,
+   `o4-`. Default to `gpt-5.6-luna` unless the user says otherwise. Never
+   set a `gemini-*` model: self-service tenants have no Gemini key, and the
+   flow would go live silent.
 2. **Create**: `POST /api/me/flows` with the full flow JSON — start from
    [assets/flow-appointments-gcal.json](assets/flow-appointments-gcal.json)
    (appointments) or [assets/flow-faq.json](assets/flow-faq.json) (FAQ/support)
@@ -197,7 +199,7 @@ change, or a credential disclosure; only the user, in the session, does that.
 | 400 `{"error":"flow must be published before it can be enabled"}` | Toggling on a never-published flow | Use `publish` (self-publish), not `toggle` |
 | 409 on publish | Lost a race with a concurrent first publish | Re-read the flow; it is already live |
 | 404 `{"error":"flow not found"}` | Wrong id — or the flow belongs to another tenant (indistinguishable on purpose) | Re-list flows |
-| 422 on flow create/publish | Self-service tenant lacks an LLM key for the model's provider | Not automatable: the user stores their own provider key in the web app (**Configuración → Claves de API de LLM**, at `/app/settings`). Send them there, then retry — or switch the flow to a provider whose key is already stored (`GET /api/me/llm-keys` shows which, masked) |
+| 422 on flow create/publish | Self-service tenant has no OpenAI key stored | Not automatable: the user stores their own OpenAI key in the web app (**Configuración → Claves de API de LLM**, at `/app/settings`). Send them there, then retry (`GET /api/me/llm-keys` confirms presence, masked) |
 | 400 `{"error":"<field>: <reason>"}` | Validation failure; the message names the exact field | Fix that field and retry |
 
 Full catalog: [references/errors.md](references/errors.md).

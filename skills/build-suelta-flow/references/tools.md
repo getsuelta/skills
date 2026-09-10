@@ -171,7 +171,7 @@ Dry-run without saving: `POST /tool-transforms/evaluate` with
   Only for pre-formatted, customer-facing strings.
 - Tool `description` quality directly controls whether the LLM calls it at the
   right moments. Describe WHEN to use it, not what it is.
-- Gemini models sometimes narrate an action instead of calling the tool
+- Models sometimes narrate an action instead of calling the tool
   ("ya registré tus datos" without invoking handoff). For action-critical
   tools, add an explicit negative rule to `instructions` ("NEVER claim X
   happened without calling <tool> in that same turn") and verify in test-chat

@@ -19,8 +19,8 @@ Spanish — Suelta serves LATAM businesses).
 |---|---|---|
 | 404 `{"error":"flow not found"}` | Bad id, or the flow belongs to another tenant (indistinguishable on purpose) | `GET /flows` and re-match |
 | 404 on `GET /flows/{id}/draft` | No pending draft — a normal state, not an error | Treat as "no edits pending" |
-| 400 `{"error":"name: required"}` (and similar `field: reason`) | Validation. Common ones: `instructions: required`, `model: unknown or unsupported`, `min_confidence: must be 0-100`, `operating_hours.from: invalid time`, `tool.name: invalid`, `tool.transform.expression: <compile error>` | Fix the named field. Model must start with `gpt-`, `o1-`, `o3-`, `o4-`, or `gemini-` |
-| 422 on flow create | BYOK tenant has no LLM key for the model's provider | Send the user to the web app (**Configuración → Claves de API de LLM**, `/app/settings`) to store the provider key themselves, or switch the flow to a provider that already has one. Never take a provider key through the conversation |
+| 400 `{"error":"name: required"}` (and similar `field: reason`) | Validation. Common ones: `instructions: required`, `model: unknown or unsupported`, `min_confidence: must be 0-100`, `operating_hours.from: invalid time`, `tool.name: invalid`, `tool.transform.expression: <compile error>` | Fix the named field. Model must start with `gpt-`, `o1-`, `o3-`, or `o4-` (OpenAI only) |
+| 422 on flow create | BYOK tenant has no OpenAI key stored | Send the user to the web app (**Configuración → Claves de API de LLM**, `/app/settings`) to store their OpenAI key themselves. Never take a provider key through the conversation |
 | 400 mentioning tools limit / parameters limit | Max 20 parameters per tool | Trim parameters |
 
 ## Publish / versions / go-live
@@ -41,7 +41,7 @@ Spanish — Suelta serves LATAM businesses).
 | 400 `contact_phone: required` / `contact_phone: invalid` | Missing or non-E.164 phone | Any valid `+<country><number>` test number |
 | 400 empty `user_message` | `user_message` is required | Provide the turn's message |
 | 403 `{"error":"test_chat_limit_reached"}` | Onboarding lifetime cap (50 messages) exhausted | Account needs activation to continue testing |
-| 502 `{"error":"llm_provider_error","provider":"google","provider_code":429,"detail":"..."}` | The tenant's own LLM provider rejected the call — `detail` carries the provider's message (invalid key, quota, monthly spending cap, outage) | Not a Suelta bug and not retryable until fixed at the provider: the user resolves it in their provider console (e.g. Gemini spend cap at https://ai.studio/spend), swaps the key themselves in the web app (**Configuración → Claves de API de LLM**), or switches the flow's model to a provider with a working key |
+| 502 `{"error":"llm_provider_error","provider":"openai","provider_code":429,"detail":"..."}` | The tenant's own OpenAI key was rejected upstream — `detail` carries OpenAI's message (invalid key, insufficient quota, spending cap, outage) | Not a Suelta bug and not retryable until fixed at the provider: the user resolves it in their OpenAI console (https://platform.openai.com/settings/organization/billing) or swaps the key themselves in the web app (**Configuración → Claves de API de LLM**) |
 | 500 `error al procesar mensaje`-style | Agent runtime failure other than an LLM provider error (tool exploding, infra) | Try once more; if it persists, report route + body (minus the key) to the user; inspect `GET /agent-events` if the flow is live |
 
 ## Messages (POST /messages/template)

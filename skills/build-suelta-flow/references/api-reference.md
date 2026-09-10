@@ -76,7 +76,7 @@ The flow JSON object (fields you send on create; server assigns `id`,
   "name": "Citas Barbería",             // required
   "description": "Agenda citas",
   "instructions": "system prompt...",    // required
-  "model": "gemini-3.6-flash",           // required; prefix gpt-|o1-|o3-|o4-|gemini-
+  "model": "gpt-5.6-luna",               // required; OpenAI only: prefix gpt-|o1-|o3-|o4-
   "min_confidence": 85,                  // 0-100; defaults to 85 if omitted
   "operating_hours": {                   // optional; omit = always active
     "days": ["mon","tue","wed","thu","fri"],
@@ -179,12 +179,12 @@ effect as `POST /flows`.
 
 ## LLM keys (BYOK tenants)
 
-Self-service tenants bring their own LLM key; flow create/publish returns 422
-if the model's provider has no key stored.
+Self-service tenants bring their own OpenAI key; flow create returns 422 if
+none is stored. Only OpenAI is supported for self-service flows.
 
 | Method | Path | Scope | Body |
 |---|---|---|---|
-| GET | `/llm-keys` | settings:read | → `{"openai_api_key":"sk-...masked"\|null,"gemini_api_key":...}` — masked, use it only to see *which* providers have a key |
+| GET | `/llm-keys` | settings:read | → `{"openai_api_key":"sk-...masked"\|null, ...}` — masked; use it only to check that an OpenAI key is present (ignore any other provider field) |
 
 Storing a provider key is **out of scope for this skill**. `PUT /llm-keys`
 exists, but a provider key is the user's own third-party secret: it must not
