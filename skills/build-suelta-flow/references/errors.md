@@ -8,8 +8,9 @@ Spanish — Suelta serves LATAM businesses).
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| 401, plain-text body `unauthorized` | Missing/malformed Bearer, unknown key id, wrong secret, revoked, or expired — deliberately indistinguishable (no oracle) | Don't retry. Don't inspect or print the key. Tell the user to re-export a valid `SUELTA_API_KEY` in their shell, minting a fresh one in the web app (**Settings → Llaves de API**) if needed |
-| 403 `{"error":"forbidden","missing_scope":"flows:publish"}` | Key valid but lacks that scope | The user creates a key including the named scope in the web app and re-exports it themselves. Keys cannot be edited — mint a new one (max 3 active per tenant) |
+| `api.mjs` exit 2, `{"error":"not_logged_in"}` | No credential stored on this machine | Run `node "$SKILL/scripts/login.mjs"`; the user clicks Autorizar in the browser (or types the code shown) |
+| 401, plain-text body `unauthorized` | Stored key unknown, revoked, or expired — deliberately indistinguishable (no oracle) | Don't retry with the same key. Don't inspect or print it. Run `node "$SKILL/scripts/login.mjs" --force`, the user clicks Autorizar again, then retry |
+| 403 `{"error":"forbidden","missing_scope":"flows:publish"}` | Key valid but lacks that scope — only possible with a manually restricted key set through the `SUELTA_API_KEY` override | Unset the override so the login credential is used, or have the owner mint a key with that scope in **Settings → Llaves de API** |
 | 403 `{"error":"forbidden"}` with NO `missing_scope` | Route requires the owner's web app session: `/api-keys/*`, `POST /whatsapp/connect`, `DELETE /whatsapp/disconnect`, `POST /tools/http-test` | Not automatable by design. Send the user to the web app |
 | 403 `{"error":"plan_required"}` | Plan gate (see flow-lifecycle.md): the tenant is still on the `onboarding` plan | Not automatable. The user finishes onboarding in the web app: connect WhatsApp (`/app`), then store their OpenAI key at `/app/onboarding`, which switches the plan to self-service. Then retry |
 | 403 `{"error":"account_blocked"}` | Suelta blocked the account | Stop; send the user to support |

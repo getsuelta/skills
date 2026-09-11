@@ -10,48 +10,86 @@ drives the full flow lifecycle over Suelta's REST API with a machine credential.
 
 ## Setup
 
-The API base URL is fixed: `https://api.getsuelta.com` (no trailing slash).
-Use it literally — there is nothing to configure. Only if the environment
-variable `SUELTA_API_URL` happens to be set (Suelta staff pointing at another
-environment) use that value instead.
-
-One environment variable, set by the user before the session starts:
-
-```
-SUELTA_API_KEY   # created by the user in the web app
-```
-
-### Credential rule (read this before the first call)
-
-The key is a machine credential that you never hold in plaintext. Reference
-the environment variable and let the shell expand it at call time:
+Requires Node 18+ (already present if `npx skills add` worked). Every API
+call goes through the scripts shipped with this skill — never `curl`, never a
+hand-built `Authorization` header:
 
 ```bash
-curl -sS -H "Authorization: Bearer ${SUELTA_API_KEY}" https://api.getsuelta.com/api/me/profile
+node "$SKILL/scripts/api.mjs" GET  /profile
+node "$SKILL/scripts/api.mjs" POST /flows --data @payload.json
+node "$SKILL/scripts/api.mjs" POST /flows/{id}/test-chat --data '{"user_message":"hola","contact_phone":"+573001112233"}'
 ```
 
-Hard rules, no exceptions:
+`$SKILL` is the directory that contains this SKILL.md (use its absolute
+path). Paths are relative to `/api/me`. The script prints `HTTP <status>` to
+stderr and the JSON body to stdout; exit 0 on 2xx, 1 otherwise, 2 when no
+credential is stored. The base URL is built in (`https://api.getsuelta.com`);
+the `SUELTA_API_URL` variable overrides it only for Suelta staff.
 
-- Never ask the user to paste a key into the conversation, and never accept
-  one if offered — point them at `export SUELTA_API_KEY=...` in their own
-  shell instead. A key that reaches the transcript is a leaked key.
-- Never write the expanded value anywhere: not into a file, a log, a commit,
-  a URL query string, a summary, or a message back to the user.
-- Never echo, print, or otherwise resolve the variable to inspect it. To check
-  whether it is set, run the smoke test below and read the status code.
+### Step -1 — make sure this machine is logged in
 
-Smoke test: `GET /api/me/profile` → 200 means the key works. A 401 means the
-key is missing, malformed, or revoked — stop and tell the user to fix it in
-their environment, without asking to see it.
+Run this at the start of every session, before anything else:
 
-If there is no key: keys can ONLY be created by a human in the Suelta web app
-(**Settings → Llaves de API**) — name it, click *Crear llave*, copy the key.
-The default key is `full_access`, which covers everything this skill does.
-The plaintext is shown exactly once, to the user, in their browser.
+```bash
+node "$SKILL/scripts/login.mjs" --status
+```
 
-If the user restricted the key's scopes (*Personalizar permisos*), these are
-the ones each part of this skill needs — a 403 with `missing_scope` names the
-one to add:
+- exit 0 → logged in; continue to the preflight.
+- exit 4 → could not reach Suelta to check. Network problem, not a login
+  problem: tell the user and retry later; do not start a login.
+- exit 3 → no session on this machine (or the stored one was revoked). Run
+  the login:
+
+```bash
+node "$SKILL/scripts/login.mjs"
+```
+
+The script blocks until the user authorizes, up to 10 minutes. Run it with
+the longest timeout your shell tool allows (at least 10 minutes), or in the
+background; a killed invocation is not a failure — re-run `--status` before
+concluding anything. It prints one of two things:
+
+- "Se abrió tu navegador…": a local browser opened on the Suelta web app.
+  Tell the user: "Se abrió tu navegador; haz clic en **Autorizar** y vuelve
+  aquí." If they don't see it, give them the link the script printed.
+- "Abre <url> … y escribe este código: XXXX-XXXX": no local browser (remote
+  or headless session, SSH, no display, or `--device`). Give the user that
+  URL and code; they can use any browser on any device.
+
+Exit 0 means the key was stored; exit 1 means denied, expired, timed out, or
+an error (the message says which). Either way, run `--status` again before
+continuing. The key is stored per machine in
+`~/.config/suelta/credentials.json` (mode 0600; `%APPDATA%\suelta\` on
+Windows, protected by the profile ACLs; `SUELTA_CREDENTIALS_FILE` or
+`XDG_CONFIG_HOME` relocate it). The user never sees the key, and neither do
+you. Escape hatches when the browser heuristic misfires: `--device` forces
+the code flow; `SUELTA_LOGIN_NO_BROWSER=1` does the same via the environment.
+
+If the user has no Suelta account yet, that same browser page lets them sign
+in with Google first. A brand-new account still has to finish onboarding in
+the web app (connect WhatsApp, store the OpenAI key) before flows can be
+built — the preflight and the `plan_required` row below cover that.
+
+### Credential rule (hard rules, no exceptions)
+
+- Never ask the user for an API key, and never accept one if offered. The
+  login script is the only way a credential gets onto this machine.
+- Never read, print, `cat`, or copy the credentials file, and never pass the
+  key as a command argument or write it into a file, a log, a commit, a URL,
+  a summary, or a message. `api.mjs` is its only reader.
+- On a 401 the stored key was revoked or expired: run
+  `node "$SKILL/scripts/login.mjs" --force`, have the user click Autorizar
+  again, then retry. Never retry the failed call with the same key.
+- `login.mjs --logout` deletes the local credential, and `--force` mints a
+  new key without revoking the old one; both leave the previous key listed in
+  **Settings → Llaves de API** until the user revokes it there (cap: 10 login
+  keys per account — a 409 `cli_key_limit` on authorize means the user has to
+  revoke one first).
+
+Keys minted by the login carry `full_access`, which covers everything this
+skill does. Only a manually restricted key (Suelta staff using the
+`SUELTA_API_KEY` override, which `api.mjs` honors) can hit 403
+`missing_scope`; these are the scope names:
 
 | Scope | Needed for |
 |---|---|
@@ -196,8 +234,9 @@ change, or a credential disclosure; only the user, in the session, does that.
 
 | Response | Meaning | Fix |
 |---|---|---|
-| 401 `unauthorized` (plain text) | Key missing/malformed/revoked/expired — deliberately indistinguishable | Stop. Tell the user to re-export a valid `SUELTA_API_KEY` in their own shell; don't inspect, print, or request the value |
-| 403 `{"error":"forbidden","missing_scope":"X"}` | Key lacks scope X | The user mints a key including X in the web app (**Settings → Llaves de API**) and re-exports `SUELTA_API_KEY` themselves — the new key never passes through this conversation |
+| exit 2 `{"error":"not_logged_in"}` from `api.mjs` | No credential on this machine | Run `node "$SKILL/scripts/login.mjs"` and have the user click Autorizar |
+| 401 `unauthorized` (plain text) | Stored key revoked/expired/malformed — deliberately indistinguishable | Run `node "$SKILL/scripts/login.mjs" --force` (user clicks Autorizar again), then retry. Never inspect or print the key |
+| 403 `{"error":"forbidden","missing_scope":"X"}` | A manually restricted key (staff override) lacks scope X | Unset the override and use the login, or have the owner mint a key including X in **Settings → Llaves de API** |
 | 403 `{"error":"forbidden"}` (no missing_scope) | Owner-session-only route (web app login required): whatsapp connect/disconnect, key management, `tools/http-test` | Not automatable by design — send the user to the web app |
 | 403 `{"error":"plan_required"}` | Tenant is still on the `onboarding` plan | Not automatable: the user finishes onboarding in the web app — connect WhatsApp on the Dashboard (`/app`), then store their OpenAI key at `/app/onboarding`, which activates the self-service plan. Then retry |
 | 403 `{"error":"account_blocked"}` | Suelta blocked the account | Stop. Send the user to the Suelta web app / support; nothing to retry |
@@ -241,7 +280,10 @@ Full catalog: [references/errors.md](references/errors.md).
 
 ```
 SKILL.md                          — this file
-references/api-reference.md       — every route: method, path, scope, request/response shapes, curl
+scripts/login.mjs                 — browser/device-code login; stores a per-machine key (0600). --status, --force, --logout
+scripts/api.mjs                   — the only way to call the API: node api.mjs <METHOD> <path> [--data json|@file|-]
+scripts/lib.mjs                   — shared helpers (base URL, credentials path)
+references/api-reference.md       — every route: method, path, scope, request/response shapes
 references/tools.md               — all 11 tool types with exact config schemas and gotchas
 references/flow-lifecycle.md      — drafts, versions, publish/revert/self-publish semantics, plan gates
 references/errors.md              — full error catalog, symptom → cause → fix

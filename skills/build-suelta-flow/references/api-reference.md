@@ -4,12 +4,13 @@ Base URL: `https://api.getsuelta.com`, fixed (use `SUELTA_API_URL` instead
 only if that variable is set). All routes below are under `/api/me`.
 Content type: `application/json` both ways.
 
-Auth: bearer scheme, with the token read from the `SUELTA_API_KEY` environment
-variable and expanded by the shell at call time — see the credential rule in
-SKILL.md. Never resolve, print, or store the value.
+Auth: bearer API key, sent for you by `scripts/api.mjs`, which reads the
+per-machine credential stored by `scripts/login.mjs` — see the credential
+rule in SKILL.md. Never build the header by hand, never resolve or print the
+key.
 
 ```bash
-curl -sS -H "Authorization: Bearer ${SUELTA_API_KEY}" https://api.getsuelta.com/api/me/<route>
+node "$SKILL/scripts/api.mjs" <GET|POST|PUT|PATCH|DELETE> /<route> [--data '<json>' | --data @file.json | --data -]
 ```
 
 An API key is valid over `/api/me/*` only. `full_access` is a wildcard over

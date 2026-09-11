@@ -8,26 +8,21 @@ WhatsApp AI assistants on a business's real WhatsApp line.
 ## Install
 
 ```bash
-npx skills add getsuelta/skills
+npx skills add getsuelta/skills -g
 ```
+
+Then open your agent (for Claude Code, type `claude`) and ask for your
+assistant in plain language. The first time, the skill opens your browser so
+you can authorize this machine on Suelta — one click, no keys to copy, no
+environment variables.
 
 ## Requirements
 
+- Node 18+ (you already have it if `npx` worked).
 - A Suelta account on the self-service plan: sign in with Google at
   https://app.getsuelta.com, connect the WhatsApp line, and store your OpenAI
-  key at `/app/onboarding` (the skill walks the user through any step that is
-  missing).
-- A Suelta API key, created by the account owner in the web app under
-  **Settings → Llaves de API** — name it, click *Crear llave*, done. Keys
-  default to full access, which covers everything this skill does; scopes can
-  optionally be restricted via *Personalizar permisos*.
-
-```bash
-export SUELTA_API_KEY=suelta_sk_...
-```
-
-The API base URL (`https://api.getsuelta.com`) is built in; nothing else to
-configure.
+  key at `/app/onboarding`. The skill walks the user through any step that
+  is missing.
 
 ## Skills
 
@@ -52,9 +47,13 @@ spends money.
 
 ## Safety model
 
-The API key can never: create or revoke API keys, connect or disconnect the
-WhatsApp line, or reach admin surfaces — those stay in the web app, with the
-account owner. Revoking a key takes effect on the very next request.
+Authorizing a machine mints a per-machine API key that is stored locally
+(`~/.config/suelta/credentials.json`, mode 0600) and never shown to the user
+or the agent. It appears in **Settings → Llaves de API** like any other key
+and can be revoked there; revocation takes effect on the very next request.
+No key can create or revoke other keys, connect or disconnect the WhatsApp
+line, or reach admin surfaces — those stay in the web app, with the account
+owner.
 
 ## License
 
