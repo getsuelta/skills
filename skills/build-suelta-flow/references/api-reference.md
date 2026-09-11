@@ -1,7 +1,7 @@
 # Suelta API reference (flow lifecycle surface)
 
-Base URL: taken from the `SUELTA_API_URL` environment variable (production:
-`https://api.getsuelta.com`). All routes below are under `/api/me`.
+Base URL: `https://api.getsuelta.com`, fixed (use `SUELTA_API_URL` instead
+only if that variable is set). All routes below are under `/api/me`.
 Content type: `application/json` both ways.
 
 Auth: bearer scheme, with the token read from the `SUELTA_API_KEY` environment
@@ -9,7 +9,7 @@ variable and expanded by the shell at call time — see the credential rule in
 SKILL.md. Never resolve, print, or store the value.
 
 ```bash
-curl -sS -H "Authorization: Bearer ${SUELTA_API_KEY}" "${SUELTA_API_URL}/api/me/<route>"
+curl -sS -H "Authorization: Bearer ${SUELTA_API_KEY}" https://api.getsuelta.com/api/me/<route>
 ```
 
 An API key is valid over `/api/me/*` only. `full_access` is a wildcard over
@@ -21,12 +21,6 @@ connect/disconnect, `tools/http-test`, or any `/api/dev|admin` route.
 ### GET /profile — scope: none
 
 Who am I. Returns the tenant profile (plan, status). Use as a smoke test.
-
-### POST /activation-intent — scope: none
-
-Fires a "this tenant wants to activate" notification to the Suelta team. Use
-when the user hits `plan_required` on go-live routes and wants to proceed.
-No body. Fire at most once per session.
 
 ## Preflight
 

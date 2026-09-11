@@ -11,7 +11,8 @@ Spanish — Suelta serves LATAM businesses).
 | 401, plain-text body `unauthorized` | Missing/malformed Bearer, unknown key id, wrong secret, revoked, or expired — deliberately indistinguishable (no oracle) | Don't retry. Don't inspect or print the key. Tell the user to re-export a valid `SUELTA_API_KEY` in their shell, minting a fresh one in the web app (**Settings → Llaves de API**) if needed |
 | 403 `{"error":"forbidden","missing_scope":"flows:publish"}` | Key valid but lacks that scope | The user creates a key including the named scope in the web app and re-exports it themselves. Keys cannot be edited — mint a new one (max 3 active per tenant) |
 | 403 `{"error":"forbidden"}` with NO `missing_scope` | Route requires the owner's web app session: `/api-keys/*`, `POST /whatsapp/connect`, `DELETE /whatsapp/disconnect`, `POST /tools/http-test` | Not automatable by design. Send the user to the web app |
-| 403 `{"error":"plan_required"}` | Plan gate (see flow-lifecycle.md). On build routes: `onboarding` plan without WhatsApp connected. On go-live/send routes: `onboarding` plan, period | Build routes: run the WhatsApp preflight. Go-live: account needs activation → offer `POST /activation-intent` |
+| 403 `{"error":"plan_required"}` | Plan gate (see flow-lifecycle.md): the tenant is still on the `onboarding` plan | Not automatable. The user finishes onboarding in the web app: connect WhatsApp (`/app`), then store their OpenAI key at `/app/onboarding`, which switches the plan to self-service. Then retry |
+| 403 `{"error":"account_blocked"}` | Suelta blocked the account | Stop; send the user to support |
 
 ## Flow CRUD & drafts
 
@@ -40,7 +41,6 @@ Spanish — Suelta serves LATAM businesses).
 |---|---|---|
 | 400 `contact_phone: required` / `contact_phone: invalid` | Missing or non-E.164 phone | Any valid `+<country><number>` test number |
 | 400 empty `user_message` | `user_message` is required | Provide the turn's message |
-| 403 `{"error":"test_chat_limit_reached"}` | Onboarding lifetime cap (50 messages) exhausted | Account needs activation to continue testing |
 | 502 `{"error":"llm_provider_error","provider":"openai","provider_code":429,"detail":"..."}` | The tenant's own OpenAI key was rejected upstream — `detail` carries OpenAI's message (invalid key, insufficient quota, spending cap, outage) | Not a Suelta bug and not retryable until fixed at the provider: the user resolves it in their OpenAI console (https://platform.openai.com/settings/organization/billing) or swaps the key themselves in the web app (**Configuración → Claves de API de LLM**) |
 | 500 `error al procesar mensaje`-style | Agent runtime failure other than an LLM provider error (tool exploding, infra) | Try once more; if it persists, report route + body (minus the key) to the user; inspect `GET /agent-events` if the flow is live |
 

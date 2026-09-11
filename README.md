@@ -13,17 +13,21 @@ npx skills add getsuelta/skills
 
 ## Requirements
 
-- A Suelta account with its WhatsApp line connected (or the skill will walk
-  the user through connecting it).
+- A Suelta account on the self-service plan: sign in with Google at
+  https://app.getsuelta.com, connect the WhatsApp line, and store your OpenAI
+  key at `/app/onboarding` (the skill walks the user through any step that is
+  missing).
 - A Suelta API key, created by the account owner in the web app under
   **Settings → Llaves de API** — name it, click *Crear llave*, done. Keys
   default to full access, which covers everything this skill does; scopes can
   optionally be restricted via *Personalizar permisos*.
 
 ```bash
-export SUELTA_API_URL=https://api.getsuelta.com
 export SUELTA_API_KEY=suelta_sk_...
 ```
+
+The API base URL (`https://api.getsuelta.com`) is built in; nothing else to
+configure.
 
 ## Skills
 

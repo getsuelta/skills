@@ -85,13 +85,15 @@ conversation, so it is always attended.
 
 | Tier | Routes | Requirement |
 |---|---|---|
-| Build & test | create, get, draft CRUD, draft tools, test-chat, tool-types, instantiate, image-upload, transforms | active plan OR (`onboarding` + WhatsApp connected) |
-| Go live & spend | publish, revert, toggle, canary, audience, messages, contacts, metrics, events, settings | active plan |
-| Always | list flows, profile, whatsapp status, integrations, flow-templates list | any plan |
+| Flow work & spend | create, draft CRUD, draft tools, test-chat, tool-types, instantiate, image-upload, transforms, publish, revert, toggle, canary, audience, messages, contacts, metrics, events, settings | plan other than `onboarding` (self-service, managed, reseller) and status `active` |
+| Always | profile, whatsapp status, integrations, flow-templates list | any plan |
 
-`403 {"error":"plan_required"}` on a build route = WhatsApp not connected yet
-(fix via preflight). On a go-live route = the account is still on the
-onboarding plan → the user needs Suelta to activate them; offer to call
-`POST /api/me/activation-intent`.
+`403 {"error":"plan_required"}` = the tenant is still on the `onboarding`
+plan. The only way out is the web app: connect WhatsApp on the Dashboard
+(`/app`), then store the OpenAI key at `/app/onboarding` — the backend
+verifies the key and switches the plan to self-service in that same step.
+There is no API call for this and nothing to wait for from Suelta on the
+self-service path. `403 {"error":"account_blocked"}` = Suelta blocked the
+account; send the user to support.
 
-Onboarding tenants also carry a lifetime cap of 50 test-chat messages.
+Test-chat has no message cap; each turn spends the tenant's own OpenAI key.
