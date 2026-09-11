@@ -198,8 +198,10 @@ function startCallbackServer(onHit) {
     const server = createServer((req, res) => {
       const url = new URL(req.url, "http://127.0.0.1");
       if (url.pathname !== "/callback") { res.writeHead(404); res.end(); return; }
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
-      res.end(DONE_PAGE);
+      // The web app owns every screen the user sees; this endpoint is only a
+      // wake-up ping (fetch no-cors from the "Listo" page), so answer empty.
+      res.writeHead(204, { "Cache-Control": "no-store" });
+      res.end();
       onHit();
     });
     server.on("error", reject);
@@ -294,8 +296,5 @@ function safeUser() {
 }
 function fail(msg) { out(msg); process.exit(1); }
 
-const DONE_PAGE = `<!doctype html><meta charset="utf-8"><title>Suelta</title>
-<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#fafafa;color:#111">
-<div style="text-align:center"><h1 style="font-weight:600">Listo ✓</h1><p>Claude Code quedó conectado a Suelta.<br>Puedes cerrar esta pestaña y volver a la terminal.</p></div></body>`;
 
 main().catch((e) => fail(clean(e?.message ?? String(e), 200)));
