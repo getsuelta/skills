@@ -135,6 +135,15 @@ skill does. Only a manually restricted key (Suelta staff using the
      `connected:true`.
    - Then `GET /api/me/integrations/gcal/calendars` to pick the target
      calendar `id` for the tools' `calendar_id`.
+3. `GET /api/me/trial` — the free-message allowance of self-service accounts.
+   - `{"eligible":false}`: not a trial account; say nothing about it.
+   - Otherwise tell the user where they stand in one line ("llevas 312 de 500
+     mensajes gratis"). Test-chat turns never count, only real agent messages.
+   - If `status` is `exhausted` (or `remaining` is 0): the assistant keeps
+     working and nothing is blocked, but the free allowance is over. Tell the
+     user so, and give them the activation link — a WhatsApp message to
+     Suelta: https://wa.me/573207988419?text=Hola%2C%20se%20me%20acabaron%20los%20mensajes%20gratis%20del%20trial%20y%20quiero%20activar%20mi%20plan%20en%20Suelta.
+     Don't stop the work they asked for; don't repeat the notice every turn.
 
 ## Golden path A — create a new flow
 
@@ -240,6 +249,7 @@ change, or a credential disclosure; only the user, in the session, does that.
 | 403 `{"error":"forbidden"}` (no missing_scope) | Owner-session-only route (web app login required): whatsapp connect/disconnect, key management, `tools/http-test` | Not automatable by design — send the user to the web app |
 | 403 `{"error":"plan_required"}` | Tenant is still on the `onboarding` plan | Not automatable: the user finishes onboarding in the web app — connect WhatsApp on the Dashboard (`/app`), then store their OpenAI key at `/app/onboarding`, which activates the self-service plan. Then retry |
 | 403 `{"error":"account_blocked"}` | Suelta blocked the account | Stop. Send the user to the Suelta web app / support; nothing to retry |
+| `GET /trial` → `status:"exhausted"` | Free-message allowance used up (not an error: no route is blocked) | Tell the user once and give them the activation link (preflight step 3); keep working |
 | 400 `{"error":"no draft to publish"}`-style on publish | Flow already published and no pending draft | Nothing to do — make an edit first |
 | 400 `{"error":"flow must be published before it can be enabled"}` | Toggling on a never-published flow | Use `publish` (self-publish), not `toggle` |
 | 409 on publish | Lost a race with a concurrent first publish | Re-read the flow; it is already live |

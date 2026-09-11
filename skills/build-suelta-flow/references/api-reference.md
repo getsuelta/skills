@@ -23,6 +23,23 @@ connect/disconnect, `tools/http-test`, or any `/api/dev|admin` route.
 
 Who am I. Returns the tenant profile (plan, status). Use as a smoke test.
 
+### GET /trial — scope: settings:read
+
+Free-message allowance of a self-service account. The allowance is a
+lifetime bucket keyed by the WhatsApp number (it survives disconnecting and
+reconnecting the line, even on another account); only persisted agent
+messages count — sandbox test-chat turns never do.
+
+- `{"eligible":false}` — not a self-service trial account (managed, reseller,
+  or created before the trial launched). Nothing to show.
+- `{"eligible":true,"phone":"+57...","allowance":500,"sent":312,"remaining":188,"status":"active"|"exhausted","exhausted_at":null|"<RFC3339>"}`
+  — `phone` is `null` until the line has sent its first message.
+
+Reaching the allowance does **not** block anything: the assistant keeps
+answering and every API route behaves the same. It is a signal for the user
+to activate a paid plan, which today is done by writing to Suelta on WhatsApp
+(see the trial rule in SKILL.md).
+
 ## Preflight
 
 ### GET /whatsapp/status — scope: settings:read
