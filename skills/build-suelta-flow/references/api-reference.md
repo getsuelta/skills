@@ -13,6 +13,14 @@ key.
 node "$SKILL/scripts/api.mjs" <GET|POST|PUT|PATCH|DELETE> /<route> [--data '<json>' | --data @file.json | --data -]
 ```
 
+Error contract: bodies are `{"error":"<code>", ...}`; `error` is always the
+first field. One multi-field error exists: 402
+`{"error":"trial_exhausted","message":"<text for the user>","contact_whatsapp":"+57...","contact_url":"https://wa.me/...","allowance":500,"sent":500}`
+on every write route (flows create/delete, draft, draft tools, test-chat,
+toggle, canary, audience, publish, revert, messages/template) when a
+self-service trial is used up. Middleware order: auth → account blocked →
+plan → trial → scope.
+
 An API key is valid over `/api/me/*` only. `full_access` is a wildcard over
 the scope catalog; it never grants key management, WhatsApp channel
 connect/disconnect, `tools/http-test`, or any `/api/dev|admin` route.
@@ -32,13 +40,16 @@ messages count — sandbox test-chat turns never do.
 
 - `{"eligible":false}` — not a self-service trial account (managed, reseller,
   or created before the trial launched). Nothing to show.
-- `{"eligible":true,"phone":"+57...","allowance":500,"sent":312,"remaining":188,"status":"active"|"exhausted","exhausted_at":null|"<RFC3339>"}`
-  — `phone` is `null` until the line has sent its first message.
+- `{"eligible":true,"phone":"+57...","allowance":500,"sent":312,"remaining":188,"status":"active"|"exhausted","exhausted_at":null|"<RFC3339>","contact_whatsapp":"+573207988419","contact_url":"https://wa.me/573207988419?text=..."}`
+  — `phone` is `null` until the line has sent its first message;
+  `contact_url` is the prefilled WhatsApp link to activate a paid plan.
 
-Reaching the allowance does **not** block anything: the assistant keeps
-answering and every API route behaves the same. It is a signal for the user
-to activate a paid plan, which today is done by writing to Suelta on WhatsApp
-(see the trial rule in SKILL.md).
+When the allowance is exhausted the assistant stops answering on WhatsApp
+(one courtesy notice to the contact, then silence), outbound templates are
+refused, and every write route below returns **402 `trial_exhausted`** with
+the same `contact_url` (see the error contract). Reads keep working. Only
+`self_service` tenants are ever gated; an `onboarding` tenant gets 403
+`plan_required` instead.
 
 ## Preflight
 
