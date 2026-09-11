@@ -133,6 +133,7 @@ async function waitForKey(flow, secret, wake) {
   const deadline = Date.now() + secs * 1000;
   let interval = Math.min(MAX_INTERVAL_MS, Math.max(1, Number(flow.interval) || 3) * 1000);
   let lastProgress = Date.now();
+  let limitWarned = false;
 
   while (Date.now() < deadline) {
     const r = await postJson("/api/cli/auth/token", { flow_id: flow.flow_id, secret });
@@ -144,6 +145,11 @@ async function waitForKey(flow, secret, wake) {
       fail("Suelta respondió sin una llave válida. Vuelve a intentar el login.");
     } else if (r.status === 428 || code === "authorization_pending") {
       // keep waiting
+    } else if (r.status === 409 || code === "cli_key_limit") {
+      if (!limitWarned) {
+        out("Tienes 10 equipos conectados a Suelta. Revoca alguno en Configuración → Llaves de API; en cuanto lo hagas, sigo aquí y termino solo.");
+        limitWarned = true;
+      }
     } else if (code === "rate_limited") {
       const retry = Number(r.retryAfter);
       interval = Math.min(60_000, Math.max(interval, (retry > 0 ? retry : 10) * 1000));
