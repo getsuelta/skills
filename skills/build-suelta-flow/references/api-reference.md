@@ -10,7 +10,7 @@ rule in SKILL.md. Never build the header by hand, never resolve or print the
 key.
 
 ```bash
-node "$SKILL/scripts/api.mjs" <GET|POST|PUT|PATCH|DELETE> /<route> [--data '<json>' | --data @file.json | --data -]
+node "$SKILL/scripts/api.mjs" <GET|POST|PUT|PATCH|DELETE> /<route> [--data @file.json | --data -]
 ```
 
 Error contract: bodies are `{"error":"<code>", ...}`; `error` is always the

@@ -19,6 +19,13 @@ environment variables.
 ## Requirements
 
 - Node 18+ (you already have it if `npx` worked).
+- Windows: Claude Code runs natively in PowerShell; install it with
+  `irm https://claude.ai/install.ps1 | iex` and Node.js LTS with
+  `winget install OpenJS.NodeJS.LTS`, then open a new PowerShell window.
+  Install the skill non-interactively with
+  `npx.cmd -y skills add getsuelta/skills -g -a claude-code -y`
+  (`npx.cmd` sidesteps the "running scripts is disabled" execution-policy
+  error).
 - A Suelta account on the self-service plan: sign in with Google at
   https://app.getsuelta.com, connect the WhatsApp line, and store your OpenAI
   key at `/app/onboarding`. The skill walks the user through any step that

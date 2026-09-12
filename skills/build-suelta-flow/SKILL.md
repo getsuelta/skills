@@ -17,8 +17,14 @@ hand-built `Authorization` header:
 ```bash
 node "$SKILL/scripts/api.mjs" GET  /profile
 node "$SKILL/scripts/api.mjs" POST /flows --data @payload.json
-node "$SKILL/scripts/api.mjs" POST /flows/{id}/test-chat --data '{"user_message":"hola","contact_phone":"+573001112233"}'
+node "$SKILL/scripts/api.mjs" POST /flows/{id}/test-chat --data @turn.json
 ```
+
+Always send request bodies from a file (`--data @file.json`, written to a
+temp directory and deleted afterwards) or through a pipe (`--data -`). Never
+pass JSON inline as a quoted argument: Windows PowerShell strips the inner
+double quotes before `node` sees them, and the call fails with "--data is not
+valid JSON".
 
 `$SKILL` is the directory that contains this SKILL.md (use its absolute
 path). Paths are relative to `/api/me`. The script prints `HTTP <status>` to
