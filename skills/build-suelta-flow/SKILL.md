@@ -141,19 +141,22 @@ skill does. Only a manually restricted key (Suelta staff using the
      `connected:true`.
    - Then `GET /api/me/integrations/gcal/calendars` to pick the target
      calendar `id` for the tools' `calendar_id`.
-3. `GET /api/me/trial` — the free-message allowance of self-service accounts.
-   - `{"eligible":false}`: not a trial account; say nothing about it.
-   - Otherwise tell the user where they stand in one line ("llevas 312 de 500
-     mensajes gratis"). Test-chat turns never count, only real agent messages.
-     When `remaining` is 10% of `allowance` or less, add that it is about to
-     run out and give them `contact_url` (a WhatsApp link to Suelta with the
-     activation message prefilled).
-   - If `status` is `exhausted`: the assistant has stopped answering on
-     WhatsApp and every build/publish/send route now returns 402 (see the
-     error table). Tell the user once, give them `contact_url`, and do only
-     what the open routes allow (reading flows, drafts, versions, status).
-     Don't repeat the notice every turn. Suelta lifts the limit by hand once
-     the user writes; it takes effect within a minute, no action needed here.
+3. `GET /api/me/access` — whether the account can run right now.
+   - `state:"not_applicable"`: not a trial account (managed and others);
+     say nothing about it.
+   - `state:"trial"`: tell the user in one line where they stand ("llevas
+     312 de 500 mensajes gratis", from `trial.sent` and `trial.allowance`).
+     Test-chat turns never count, only real agent messages. If `trial_low`
+     is `true` (10% or less left), add that it is about to run out and give
+     them `contact_url`, a WhatsApp link to Suelta with the message prefilled.
+   - `state:"paid"`: nothing to say.
+   - `state:"suspended"`: the assistant is paused. It does not answer on
+     WhatsApp, and publish, enable (toggle) and template sends return 402
+     `payment_required` (error table). `reason` is `trial_exhausted` or
+     `paid_period_expired`. Tell the user once, with `contact_url`. Building,
+     editing and sandbox testing still work (test-chat spends their own
+     OpenAI key), but don't offer to publish. Suelta reactivates the account
+     when the user pays; it takes effect within a minute.
 
 ## Golden path A — create a new flow
 
@@ -259,7 +262,7 @@ change, or a credential disclosure; only the user, in the session, does that.
 | 403 `{"error":"forbidden"}` (no missing_scope) | Owner-session-only route (web app login required): whatsapp connect/disconnect, key management, `tools/http-test` | Not automatable by design — send the user to the web app |
 | 403 `{"error":"plan_required"}` | Tenant is still on the `onboarding` plan | Not automatable: the user finishes onboarding in the web app — connect WhatsApp on the Dashboard (`/app`), then store their OpenAI key at `/app/onboarding`, which activates the self-service plan. Then retry |
 | 403 `{"error":"account_blocked"}` | Suelta blocked the account | Stop. Send the user to the Suelta web app / support; nothing to retry |
-| 402 `{"error":"trial_exhausted","message":"...","contact_url":"https://wa.me/...","allowance":500,"sent":500}` | Free trial used up: create/draft/tools/test-chat/publish/toggle/canary/audience/revert and template sends are blocked; reads still work | Don't retry. Show the user `message` and `contact_url` once, then continue with read-only work. Nothing you can do lifts it — Suelta does, by hand, after the user writes |
+| 402 `{"error":"payment_required","reason":"trial_exhausted"\|"paid_period_expired","message":"...","contact_url":"https://wa.me/...",...}` | Account paused for payment. Only publish, toggle and messages/template are refused; everything else keeps working | Don't retry. Show the user `message` and `contact_url` once. Keep building or testing if they want; publishing waits until Suelta reactivates the account |
 | 400 `{"error":"no draft to publish"}`-style on publish | Flow already published and no pending draft | Nothing to do — make an edit first |
 | 400 `{"error":"flow must be published before it can be enabled"}` | Toggling on a never-published flow | Use `publish` (self-publish), not `toggle` |
 | 409 on publish | Lost a race with a concurrent first publish | Re-read the flow; it is already live |

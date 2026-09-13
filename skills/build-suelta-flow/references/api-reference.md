@@ -15,11 +15,10 @@ node "$SKILL/scripts/api.mjs" <GET|POST|PUT|PATCH|DELETE> /<route> [--data @file
 
 Error contract: bodies are `{"error":"<code>", ...}`; `error` is always the
 first field. One multi-field error exists: 402
-`{"error":"trial_exhausted","message":"<text for the user>","contact_whatsapp":"+57...","contact_url":"https://wa.me/...","allowance":500,"sent":500}`
-on every write route (flows create/delete, draft, draft tools, test-chat,
-toggle, canary, audience, publish, revert, messages/template) when a
-self-service trial is used up. Middleware order: auth → account blocked →
-plan → trial → scope.
+`{"error":"payment_required","reason":"trial_exhausted"|"paid_period_expired","message":"<text for the user>","contact_whatsapp":"+57...","contact_url":"https://wa.me/...","allowance":500,"sent":500,"paid_until":null|"<RFC3339>"}`
+on publish, toggle and messages/template when the account is suspended for
+payment (see `GET /access`). `paid_until` is set only for
+`paid_period_expired`.
 
 An API key is valid over `/api/me/*` only. `full_access` is a wildcard over
 the scope catalog; it never grants key management, WhatsApp channel
@@ -31,25 +30,39 @@ connect/disconnect, `tools/http-test`, or any `/api/dev|admin` route.
 
 Who am I. Returns the tenant profile (plan, status). Use as a smoke test.
 
-### GET /trial — scope: settings:read
+### GET /access — scope: settings:read
 
-Free-message allowance of a self-service account. The allowance is a
-lifetime bucket keyed by the WhatsApp number (it survives disconnecting and
-reconnecting the line, even on another account); only persisted agent
-messages count — sandbox test-chat turns never do.
+Whether the account may run right now. Source of truth for the trial and for
+paid coverage.
 
-- `{"eligible":false}` — not a self-service trial account (managed, reseller,
-  or created before the trial launched). Nothing to show.
-- `{"eligible":true,"phone":"+57...","allowance":500,"sent":312,"remaining":188,"status":"active"|"exhausted","exhausted_at":null|"<RFC3339>","contact_whatsapp":"+573207988419","contact_url":"https://wa.me/573207988419?text=..."}`
-  — `phone` is `null` until the line has sent its first message;
-  `contact_url` is the prefilled WhatsApp link to activate a paid plan.
+```json
+{
+  "state": "not_applicable" | "trial" | "paid" | "suspended",
+  "reason": null | "trial_exhausted" | "paid_period_expired",
+  "trial": null | {"allowance": 500, "sent": 312, "remaining": 188, "status": "active" | "exhausted"},
+  "trial_low": false,
+  "paid_until": null | "2026-10-13T04:59:59Z",
+  "contact_whatsapp": "+573207988419",
+  "contact_url": "https://wa.me/573207988419?text=..."
+}
+```
 
-When the allowance is exhausted the assistant stops answering on WhatsApp
-(one courtesy notice to the contact, then silence), outbound templates are
-refused, and every write route below returns **402 `trial_exhausted`** with
-the same `contact_url` (see the error contract). Reads keep working. Only
-`self_service` tenants are ever gated; an `onboarding` tenant gets 403
-`plan_required` instead.
+- `not_applicable`: not a self-service trial account (managed, reseller, or
+  created before the trial launched). `trial` is `null`.
+- `trial`: free allowance running. The allowance is a lifetime bucket keyed
+  by the WhatsApp number (it survives reconnecting the line on another
+  account); only persisted agent messages count, never sandbox test-chat.
+  `trial_low` is `true` with 10% or less left.
+- `paid`: Suelta recorded a payment; `paid_until` is when coverage ends.
+- `suspended`: allowance used up without payment, or coverage expired. The
+  agent stops answering on WhatsApp (no notice to the contact), outbound
+  templates, reminders and emoji triggers stop, and publish, toggle and
+  messages/template answer 402 `payment_required`. Everything else, including
+  create, draft, tools and test-chat, keeps working.
+- `contact_url` is the prefilled WhatsApp link to Suelta; its text adapts to
+  the state.
+
+`GET /trial` still exists with the raw bucket, but read `/access`.
 
 ## Preflight
 
