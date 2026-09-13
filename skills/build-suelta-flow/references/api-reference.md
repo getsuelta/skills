@@ -16,9 +16,11 @@ node "$SKILL/scripts/api.mjs" <GET|POST|PUT|PATCH|DELETE> /<route> [--data @file
 Error contract: bodies are `{"error":"<code>", ...}`; `error` is always the
 first field. One multi-field error exists: 402
 `{"error":"payment_required","reason":"trial_exhausted"|"paid_period_expired","message":"<text for the user>","contact_whatsapp":"+57...","contact_url":"https://wa.me/...","allowance":500,"sent":500,"paid_until":null|"<RFC3339>"}`
-on publish, toggle and messages/template when the account is suspended for
-payment (see `GET /access`). `paid_until` is set only for
-`paid_period_expired`.
+on toggle-to-enabled, first publish, and messages/template when the account
+is suspended for payment (see `GET /access`). `paid_until` is set only for
+`paid_period_expired`. `message` for that reason reads "Tu asistente está
+pausado: tu plan venció el DD/MM/AAAA. Escríbenos por WhatsApp para
+renovarlo." and `contact_url` carries a renewal text.
 
 An API key is valid over `/api/me/*` only. `full_access` is a wildcard over
 the scope catalog; it never grants key management, WhatsApp channel
@@ -56,9 +58,12 @@ paid coverage.
 - `paid`: Suelta recorded a payment; `paid_until` is when coverage ends.
 - `suspended`: allowance used up without payment, or coverage expired. The
   agent stops answering on WhatsApp (no notice to the contact), outbound
-  templates, reminders and emoji triggers stop, and publish, toggle and
-  messages/template answer 402 `payment_required`. Everything else, including
-  create, draft, tools and test-chat, keeps working.
+  templates, reminders and emoji triggers stop, and three calls answer 402
+  `payment_required`: toggle with `{"enabled":true}`, the first publish of a
+  never-published flow, and messages/template. Everything else keeps working,
+  including create, draft, tools, test-chat, republishing a live flow,
+  revert, canary, audience and turning a flow off. An unknown `reason` means
+  the same as the known ones: payment required.
 - `contact_url` is the prefilled WhatsApp link to Suelta; its text adapts to
   the state.
 

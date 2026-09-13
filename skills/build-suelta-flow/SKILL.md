@@ -151,9 +151,12 @@ skill does. Only a manually restricted key (Suelta staff using the
      them `contact_url`, a WhatsApp link to Suelta with the message prefilled.
    - `state:"paid"`: nothing to say.
    - `state:"suspended"`: the assistant is paused. It does not answer on
-     WhatsApp, and publish, enable (toggle) and template sends return 402
+     WhatsApp, and turning a flow on (toggle to enabled, or the first
+     publish of a never-published flow) and template sends return 402
      `payment_required` (error table). `reason` is `trial_exhausted` or
-     `paid_period_expired`. Tell the user once, with `contact_url`. Building,
+     `paid_period_expired`; treat any other value the same way. Tell the user
+     once, with `contact_url`. The contacts who write to the business get no
+     reply and no notice while it lasts, so say that plainly. Building,
      editing and sandbox testing still work (test-chat spends their own
      OpenAI key), but don't offer to publish. Suelta reactivates the account
      when the user pays; it takes effect within a minute.
@@ -262,7 +265,7 @@ change, or a credential disclosure; only the user, in the session, does that.
 | 403 `{"error":"forbidden"}` (no missing_scope) | Owner-session-only route (web app login required): whatsapp connect/disconnect, key management, `tools/http-test` | Not automatable by design — send the user to the web app |
 | 403 `{"error":"plan_required"}` | Tenant is still on the `onboarding` plan | Not automatable: the user finishes onboarding in the web app — connect WhatsApp on the Dashboard (`/app`), then store their OpenAI key at `/app/onboarding`, which activates the self-service plan. Then retry |
 | 403 `{"error":"account_blocked"}` | Suelta blocked the account | Stop. Send the user to the Suelta web app / support; nothing to retry |
-| 402 `{"error":"payment_required","reason":"trial_exhausted"\|"paid_period_expired","message":"...","contact_url":"https://wa.me/...",...}` | Account paused for payment. Only publish, toggle and messages/template are refused; everything else keeps working | Don't retry. Show the user `message` and `contact_url` once. Keep building or testing if they want; publishing waits until Suelta reactivates the account |
+| 402 `{"error":"payment_required","reason":"trial_exhausted"\|"paid_period_expired","message":"...","contact_url":"https://wa.me/...",...}` | Account paused for payment. Refused: toggle to enabled, the first publish of a never-published flow, and messages/template. Republishing a live flow, revert, drafts, test-chat and everything else keep working | Don't retry. Show the user `message` and `contact_url` once. Keep building or testing if they want; publishing waits until Suelta reactivates the account |
 | 400 `{"error":"no draft to publish"}`-style on publish | Flow already published and no pending draft | Nothing to do — make an edit first |
 | 400 `{"error":"flow must be published before it can be enabled"}` | Toggling on a never-published flow | Use `publish` (self-publish), not `toggle` |
 | 409 on publish | Lost a race with a concurrent first publish | Re-read the flow; it is already live |
