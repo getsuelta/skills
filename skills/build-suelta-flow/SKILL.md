@@ -275,6 +275,27 @@ change, or a credential disclosure; only the user, in the session, does that.
 
 Full catalog: [references/errors.md](references/errors.md).
 
+### "Mi asistente no responde"
+
+Nothing tells the owner when the assistant goes silent, so check in this
+order and stop at the first hit:
+
+1. `GET /access` → `state:"suspended"`: paused for payment. Give the user
+   `contact_url`.
+2. `GET /whatsapp/status` → `connected:false`: the line was disconnected.
+   Send them to the Dashboard to reconnect.
+3. `GET /flows/{id}`: `enabled:false`, an `audience` that excludes the
+   contact, or a `canary_config` allowlist or percent that leaves them out.
+4. Run one test-chat turn. A 502 `llm_provider_error` with
+   `"provider":"openai"` means their OpenAI key stopped working after it was
+   saved: revoked, out of credit, or over its spending cap. Suelta only
+   verifies the key when it is stored. The user fixes it in their OpenAI
+   console, or stores a working key again in the web app
+   (**Configuración → Claves de API de LLM**), which re-verifies it. Never
+   take the key through the conversation.
+5. Voice notes in AMR/AAC, or any audio that fails to transcribe, get no
+   reply at all. Ask whether the silent messages were audios.
+
 ## How to discover an ID you're missing
 
 | You need | How to get it |
